@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Jarvis Voice Assistant</title>
+    <style>
+        body {
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #circle {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #4e54c8, #8f94fb);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.2em;
+            box-shadow: 0 0 40px #4e54c8;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+        #circle.listening {
+            box-shadow: 0 0 80px #8f94fb;
+        }
+        #response {
+            margin-top: 30px;
+            color: #fff;
+            text-align: center;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="circle">Tap & Speak</div>
+    <div id="response"></div>
+    <script>
+        const circle = document.getElementById('circle');
+        const responseDiv = document.getElementById('response');
+        let recognizing = false;
+        let recognition;
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                recognizing = true;
+                circle.classList.add('listening');
+                circle.textContent = "Listening...";
+            };
+
+            recognition.onend = function() {
+                recognizing = false;
+                circle.classList.remove('listening');
+                circle.textContent = "Tap & Speak";
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                responseDiv.textContent = "You said: " + transcript;
+                // Send transcript to backend
+                fetch('/api/jarvis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: transcript })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    responseDiv.textContent = "Jarvis: " + data.reply;
+                    // Optionally, speak the reply
+                    const synth = window.speechSynthesis;
+                    const utter = new SpeechSynthesisUtterance(data.reply);
+                    synth.speak(utter);
+                })
+                .catch(() => {
+                    responseDiv.textContent = "Error contacting Jarvis.";
+                });
+            };
+
+            circle.onclick = function() {
+                if (!recognizing) {
+                    recognition.start();
+                }
+            };
+        } else {
+            circle.textContent = "Speech not supported";
+        }
+    </script>
+</body>
+</html>
